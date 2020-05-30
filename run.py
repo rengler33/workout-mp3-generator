@@ -58,7 +58,7 @@ class Mp3Creator:
 
         final_mp3 += self.finished_sound
 
-        new_file_name = "new.mp3"
+        new_file_name = "output/new.mp3"
         final_mp3.export(new_file_name, format="mp3")
 
         self._delete_segment_files()
