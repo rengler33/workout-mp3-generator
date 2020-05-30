@@ -35,19 +35,10 @@ class Mp3Creator:
 
     def __init__(self, exercises: list):
         self.segments = self._create_segments(exercises)
-
-    def create_mp3(self):
-        self._create_segment_files()
-
-        final_mp3 = AudioSegment.silent(0)
-        for segment in self.segments:
-            final_mp3 += AudioSegment.from_mp3(segment.audio_file_path)
-        new_file_name = "new.mp3"
-        final_mp3.export(new_file_name, format="mp3")
-
-        self._delete_segment_files()
-
-        return new_file_name
+        self.beep_start = AudioSegment.from_mp3("audio_resources/beep_start.mp3")
+        self.beep_end = AudioSegment.from_mp3("audio_resources/beep_end.mp3")
+        self.finished_sound = AudioSegment.from_mp3("audio_resources/workout_end.mp3")
+        self.pause = AudioSegment.silent(2500)  # milliseconds
 
     def _create_segments(self, exercises: list):
         segments = []
@@ -58,6 +49,22 @@ class Mp3Creator:
             segments.append(segment)
         return segments
 
+    def create_mp3(self):
+        self._create_segment_files()
+
+        final_mp3 = AudioSegment.silent(2000)
+        for segment in self.segments:
+            final_mp3 += AudioSegment.from_mp3(segment.audio_file_path)
+
+        final_mp3 += self.finished_sound
+
+        new_file_name = "new.mp3"
+        final_mp3.export(new_file_name, format="mp3")
+
+        self._delete_segment_files()
+
+        return new_file_name
+
     def _create_segment_files(self):
         for segment in self.segments:
             segment.speech_obj.save(segment.audio_file_path)
@@ -65,10 +72,9 @@ class Mp3Creator:
 
     def _add_silence_to_segment_file(self, segment: Segment):
         speech = AudioSegment.from_mp3(segment.audio_file_path)
-
         MILLISECONDS = 1000
         silence = AudioSegment.silent(segment.exercise.duration * MILLISECONDS)
-        new_audio = speech + silence
+        new_audio = speech + self.pause + self.beep_start + silence + self.beep_end
 
         new_audio.export(segment.audio_file_path, format="mp3")
 
@@ -80,7 +86,8 @@ class Mp3Creator:
 if __name__ == '__main__':
     exercise1 = Exercise("jumping jacks", 2, 30)
     exercise2 = Exercise("burpees", 7)
-    exercises = [exercise1, exercise2]
+    exercise3 = Exercise("pushups", 20, 20)
+    exercises = [exercise1, exercise2, exercise3]
     creator = Mp3Creator(exercises)
     creator.create_mp3()
 
