@@ -68,9 +68,9 @@ class Mp3Creator:
     def _create_segment_files(self):
         for segment in self.segments:
             segment.speech_obj.save(segment.audio_file_path)
-            self._add_silence_to_segment_file(segment)
+            self._add_beeps_and_silence_to_segment_file(segment)
 
-    def _add_silence_to_segment_file(self, segment: Segment):
+    def _add_beeps_and_silence_to_segment_file(self, segment: Segment):
         speech = AudioSegment.from_mp3(segment.audio_file_path)
         MILLISECONDS = 1000
         silence = AudioSegment.silent(segment.exercise.duration * MILLISECONDS)
