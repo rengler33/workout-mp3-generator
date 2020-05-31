@@ -51,7 +51,7 @@ class Mp3Creator:
             segments.append(segment)
         return segments
 
-    def create_mp3(self):
+    def create_mp3(self, new_filename):
         self._create_segment_files()
 
         final_mp3 = AudioSegment.silent(2000)
@@ -60,13 +60,12 @@ class Mp3Creator:
 
         final_mp3 += self.finished_sound
 
-        p = Path(".") / "output" / "new.mp3"
-        new_file_name = p.absolute()
-        final_mp3.export(new_file_name, format="mp3")
+        p = Path(".") / "output" / new_filename
+        final_mp3.export(p.absolute(), format="mp3")
 
         self._delete_segment_files()
 
-        return new_file_name
+        return p.absolute()
 
     def _create_segment_files(self):
         for segment in self.segments:
@@ -105,8 +104,8 @@ if __name__ == '__main__':
         return exercises
 
 
-    p = Path.home() / 'Documents' / 'Leg Stretch Workout.xlsx'
+    p = Path.home() / 'Documents' / 'Abs workout.xlsx'
     exercises = load_exercises_from_workbook(p.absolute())
 
     creator = Mp3Creator(exercises)
-    creator.create_mp3()
+    creator.create_mp3('Abs workout.mp3')
