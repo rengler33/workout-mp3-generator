@@ -1,5 +1,6 @@
 from collections import namedtuple
 from dataclasses import dataclass
+from pathlib import Path
 import typing
 import os
 
@@ -35,9 +36,10 @@ class Mp3Creator:
 
     def __init__(self, exercises: list):
         self.segments = self._create_segments(exercises)
-        self.beep_start = AudioSegment.from_mp3("audio_resources/beep_start.mp3")
-        self.beep_end = AudioSegment.from_mp3("audio_resources/beep_end.mp3")
-        self.finished_sound = AudioSegment.from_mp3("audio_resources/workout_end.mp3")
+        p = Path(".") / "audio_resources"
+        self.beep_start = AudioSegment.from_mp3(f"{p.absolute()}/beep_start.mp3")
+        self.beep_end = AudioSegment.from_mp3(f"{p.absolute()}/beep_end.mp3")
+        self.finished_sound = AudioSegment.from_mp3(f"{p.absolute()}/workout_end.mp3")
         self.pause = AudioSegment.silent(2500)  # milliseconds
 
     def _create_segments(self, exercises: list):
@@ -58,7 +60,8 @@ class Mp3Creator:
 
         final_mp3 += self.finished_sound
 
-        new_file_name = "output/new.mp3"
+        p = Path(".") / "output" / "new.mp3"
+        new_file_name = p.absolute()
         final_mp3.export(new_file_name, format="mp3")
 
         self._delete_segment_files()
@@ -90,4 +93,3 @@ if __name__ == '__main__':
     exercises = [exercise1, exercise2, exercise3]
     creator = Mp3Creator(exercises)
     creator.create_mp3()
-
