@@ -87,9 +87,26 @@ class Mp3Creator:
 
 
 if __name__ == '__main__':
-    exercise1 = Exercise("jumping jacks", 2, 30)
-    exercise2 = Exercise("burpees", 7)
-    exercise3 = Exercise("pushups", 20, 20)
-    exercises = [exercise1, exercise2, exercise3]
+
+    def load_exercises_from_workbook(filepath):
+        from openpyxl import load_workbook
+
+        wb = load_workbook(filepath)
+        ws = wb.active
+        exercises = []
+        for i, row in enumerate(ws.iter_rows()):
+            if i == 0:
+                continue
+            if row[2].value:
+                exercise = Exercise(row[0].value, int(row[1].value), int(row[2].value))
+            else:
+                exercise = Exercise(row[0].value, int(row[1].value))
+            exercises.append(exercise)
+        return exercises
+
+
+    p = Path.home() / 'Documents' / 'Leg Stretch Workout.xlsx'
+    exercises = load_exercises_from_workbook(p.absolute())
+
     creator = Mp3Creator(exercises)
     creator.create_mp3()
