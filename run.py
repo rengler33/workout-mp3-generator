@@ -1,3 +1,4 @@
+import argparse
 from collections import namedtuple
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,36 +37,36 @@ class Mp3Creator:
 
     def __init__(self, exercises: list):
         self.segments = self._create_segments(exercises)
-        p = Path(".") / "audio_resources"
-        self.beep_start = AudioSegment.from_mp3(f"{p.absolute()}/beep_start.mp3")
-        self.beep_end = AudioSegment.from_mp3(f"{p.absolute()}/beep_end.mp3")
-        self.finished_sound = AudioSegment.from_mp3(f"{p.absolute()}/workout_end.mp3")
+
+        p = Path(__file__).parent / "audio_resources"
+        self.beep_start = AudioSegment.from_mp3(f"{p}/beep_start.mp3")
+        self.beep_end = AudioSegment.from_mp3(f"{p}/beep_end.mp3")
+        self.finished_sound = AudioSegment.from_mp3(f"{p}/workout_end.mp3")
+
         self.pause = AudioSegment.silent(2500)  # milliseconds
 
     def _create_segments(self, exercises: list):
         segments = []
         for i, exercise in enumerate(exercises):
             speech_obj = exercise.create_speech_obj()
-            filename = f"audio{i}.mp3"
-            segment = self.Segment(exercise, speech_obj, filename)
+            filepath = Path(".") / f"audio{i}.mp3"
+            segment = self.Segment(exercise, speech_obj, filepath)
             segments.append(segment)
         return segments
 
-    def create_mp3(self, new_filename):
+    def create_mp3(self, filepath: Path):
         self._create_segment_files()
 
         final_mp3 = AudioSegment.silent(2000)
         for segment in self.segments:
             final_mp3 += AudioSegment.from_mp3(segment.audio_file_path)
-
         final_mp3 += self.finished_sound
 
-        p = Path(".") / "output" / new_filename
-        final_mp3.export(p.absolute(), format="mp3")
+        final_mp3.export(filepath, format="mp3")
 
         self._delete_segment_files()
 
-        return p.absolute()
+        return filepath
 
     def _create_segment_files(self):
         for segment in self.segments:
@@ -85,27 +86,44 @@ class Mp3Creator:
             os.remove(segment.audio_file_path)
 
 
+def load_exercises_from_xlsx(filepath: Path):
+    from openpyxl import load_workbook
+
+    wb = load_workbook(filepath)
+    ws = wb.active
+    exercises = []
+    for i, row in enumerate(ws.iter_rows()):
+        if i == 0:
+            continue
+        if row[2].value:
+            exercise = Exercise(row[0].value, int(row[1].value), int(row[2].value))
+        else:
+            exercise = Exercise(row[0].value, int(row[1].value))
+        exercises.append(exercise)
+    return exercises
+
+
 if __name__ == '__main__':
 
-    def load_exercises_from_workbook(filepath):
-        from openpyxl import load_workbook
+    parser = argparse.ArgumentParser(
+        description="Create audio file from a list of text elements, each with a specified silence interval to follow.")
+    group = parser.add_mutually_exclusive_group()
+    parser.add_argument("output", type=lambda p: Path(p).absolute(),
+                        help="Name of the output file, optionally include full filepath")
+    group.add_argument("--xlsx", type=lambda p: Path(p).absolute(), help="Import from an xlsx file.")
+    group.add_argument("--csv", type=lambda p: Path(p).absolute(), help="Import from a CSV file.")
+    group.add_argument("--stdin", help="Import from stdin.")
+    args = parser.parse_args()
 
-        wb = load_workbook(filepath)
-        ws = wb.active
-        exercises = []
-        for i, row in enumerate(ws.iter_rows()):
-            if i == 0:
-                continue
-            if row[2].value:
-                exercise = Exercise(row[0].value, int(row[1].value), int(row[2].value))
-            else:
-                exercise = Exercise(row[0].value, int(row[1].value))
-            exercises.append(exercise)
-        return exercises
+    if args.output.suffix != ".mp3":
+        args.output = args.output.parent / (args.output.name + '.mp3')
 
-
-    p = Path.home() / 'Documents' / 'Abs workout.xlsx'
-    exercises = load_exercises_from_workbook(p.absolute())
+    if args.xlsx:
+        exercises = load_exercises_from_xlsx(args.xlsx)
+    if args.csv:
+        pass
+    if args.stdin:
+        pass
 
     creator = Mp3Creator(exercises)
-    creator.create_mp3('Abs workout.mp3')
+    creator.create_mp3(args.output)
