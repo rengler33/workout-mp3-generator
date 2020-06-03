@@ -40,6 +40,7 @@ class Mp3Creator:
 
         p = Path(__file__).parent / "audio_resources"
         self.beep_start = AudioSegment.from_mp3(f"{p}/beep_start.mp3")
+        self.beep_intermediate = AudioSegment.from_mp3(f"{p}/beep_intermediate.mp3")
         self.beep_end = AudioSegment.from_mp3(f"{p}/beep_end.mp3")
         self.finished_sound = AudioSegment.from_mp3(f"{p}/workout_end.mp3")
 
@@ -75,9 +76,15 @@ class Mp3Creator:
 
     def _add_beeps_and_silence_to_segment_file(self, segment: Segment):
         speech = AudioSegment.from_mp3(segment.audio_file_path)
-        MILLISECONDS = 1000
-        silence = AudioSegment.silent(segment.exercise.duration * MILLISECONDS)
-        new_audio = speech + self.pause + self.beep_start + silence + self.beep_end
+        AS_MILLISECONDS = 1000
+        BEEP_INTERVAL = 5 * AS_MILLISECONDS
+        silence = AudioSegment.silent(segment.exercise.duration * AS_MILLISECONDS)
+        for interval in range(BEEP_INTERVAL, len(silence), BEEP_INTERVAL):
+            silence = silence[:interval] + \
+                      self.beep_intermediate + \
+                      silence[interval + len(self.beep_intermediate):]
+        silence_with_beeps = self.beep_start + silence[len(self.beep_start):] + self.beep_end
+        new_audio = speech + self.pause + silence_with_beeps
 
         new_audio.export(segment.audio_file_path, format="mp3")
 
