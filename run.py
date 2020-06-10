@@ -6,6 +6,7 @@ import typing
 import os
 
 from gtts import gTTS
+from gtts.tts import gTTSError
 from pydub import AudioSegment
 
 
@@ -55,7 +56,7 @@ class Mp3Creator:
             segments.append(segment)
         return segments
 
-    def create_mp3(self, filepath: Path):
+    def create_mp3(self, filepath: Path, tags: dict = None):
         self._create_segment_files()
 
         final_mp3 = AudioSegment.silent(2000)
@@ -63,7 +64,7 @@ class Mp3Creator:
             final_mp3 += AudioSegment.from_mp3(segment.audio_file_path)
         final_mp3 += self.finished_sound
 
-        final_mp3.export(filepath, format="mp3")
+        final_mp3.export(filepath, format="mp3", tags=tags)
 
         self._delete_segment_files()
 
@@ -71,7 +72,12 @@ class Mp3Creator:
 
     def _create_segment_files(self):
         for segment in self.segments:
-            segment.speech_obj.save(segment.audio_file_path)
+            while True:
+                try:
+                    segment.speech_obj.save(segment.audio_file_path)
+                except gTTSError:
+                    print("Error downloading segment file.")
+                break
             self._add_beeps_and_silence_to_segment_file(segment)
 
     def _add_beeps_and_silence_to_segment_file(self, segment: Segment):
@@ -114,16 +120,33 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description="Create audio file from a list of text elements, each with a specified silence interval to follow.")
-    group = parser.add_mutually_exclusive_group()
     parser.add_argument("output", type=lambda p: Path(p).absolute(),
                         help="Name of the output file, optionally include full filepath")
+
+    parser.add_argument("--title", type=str,
+                        help="Name of 'title' to help with classification of file. Uses filename if not provided.")
+    parser.add_argument("--artist", type=str, help="Name of 'artist' to help with classification of file.")
+    parser.add_argument("--album", type=str, help="Name of 'album' to help with classification of file.")
+
+    group = parser.add_mutually_exclusive_group()
     group.add_argument("--xlsx", type=lambda p: Path(p).absolute(), help="Import from an xlsx file.")
     group.add_argument("--csv", type=lambda p: Path(p).absolute(), help="Import from a CSV file.")
     group.add_argument("--stdin", help="Import from stdin.")
+
     args = parser.parse_args()
 
     if args.output.suffix != ".mp3":
-        args.output = args.output.parent / (args.output.name + '.mp3')
+        args.output = args.output.parent / (args.output.stem + '.mp3')
+
+    tags = {}
+    if args.title:
+        tags["title"] = args.title
+    else:
+        tags["title"] = args.output.stem
+    if args.artist:
+        tags["artist"] = args.artist
+    if args.album:
+        tags["album"] = args.album
 
     if args.xlsx:
         exercises = load_exercises_from_xlsx(args.xlsx)
@@ -133,4 +156,4 @@ if __name__ == '__main__':
         pass
 
     creator = Mp3Creator(exercises)
-    creator.create_mp3(args.output)
+    creator.create_mp3(args.output, tags)
