@@ -19,7 +19,7 @@ class Exercise:
     language: str = "en"
     slow: bool = False
 
-    def instruction_text(self) -> str:
+    def _instruction_text(self) -> str:
         if self.reps:
             text = f"{self.reps} {self.name} in {self.duration} seconds"
         else:
@@ -27,7 +27,7 @@ class Exercise:
         return text
 
     def create_speech_obj(self) -> gTTS:
-        speech_obj = gTTS(text=self.instruction_text(), lang=self.language, slow=self.slow)
+        speech_obj = gTTS(text=self._instruction_text(), lang=self.language, slow=self.slow)
         return speech_obj
 
 
