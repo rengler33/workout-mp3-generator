@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import typing
 import os
+import sys
 
 from gtts import gTTS
 from gtts.tts import gTTSError
@@ -116,6 +117,19 @@ def load_exercises_from_xlsx(filepath: Path):
     return exercises
 
 
+def load_exercises_from_stdin():
+    rows = [e.strip() for e in sys.stdin]
+    exercises = []
+    for row in rows:
+        items = row.split(",")
+        if len(items) == 3:
+            exercise = Exercise(items[0], int(items[1]), int(items[2]))
+        else:
+            exercise = Exercise(items[0], int(items[1]))
+        exercises.append(exercise)
+    return exercises
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
@@ -131,7 +145,8 @@ if __name__ == '__main__':
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--xlsx", type=lambda p: Path(p).absolute(), help="Import from an xlsx file.")
     group.add_argument("--csv", type=lambda p: Path(p).absolute(), help="Import from a CSV file.")
-    group.add_argument("--stdin", help="Import from stdin.")
+    group.add_argument("--stdin", action="store_true",
+                       help="Import from stdin (comma-separated with each exercise on a new line).")
 
     args = parser.parse_args()
 
@@ -153,7 +168,7 @@ if __name__ == '__main__':
     if args.csv:
         pass
     if args.stdin:
-        pass
+        exercises = load_exercises_from_stdin()
 
     creator = Mp3Creator(exercises)
     creator.create_mp3(args.output, tags)
