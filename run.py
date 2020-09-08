@@ -45,7 +45,7 @@ class Mp3Creator:
         segments = []
         for i, exercise in enumerate(exercises):
             speech_obj = exercise.create_speech_obj()
-            filepath = Path(".") / f"audio{i}.mp3"
+            filepath = Path(".") / f"{exercise.name[:20]}.mp3"
             segment = self.Segment(exercise, speech_obj, filepath)
             segments.append(segment)
         return segments
@@ -59,8 +59,10 @@ class Mp3Creator:
 
         self.pause = AudioSegment.silent(2500)  # milliseconds
 
-    def create_mp3(self, filepath: Path, tags: dict = None):
-        self._create_segment_files()
+    def create_mp3s(self, tags: dict = None):
+        self._create_segment_files(tags)
+
+    def merge_mp3s_into_single_file(self, filepath: Path, tags: dict = None):
 
         final_mp3 = AudioSegment.silent(2000)
         for segment in self.segments:
@@ -73,7 +75,9 @@ class Mp3Creator:
 
         return filepath
 
-    def _create_segment_files(self):
+    def _create_segment_files(self, tags: dict = None):
+        counter = 0
+        total_tracks = len(self.segments)
         for segment in self.segments:
             while True:
                 try:
@@ -81,9 +85,17 @@ class Mp3Creator:
                 except gTTSError:
                     print("Error downloading segment file.")
                 break
-            self._add_beeps_and_silence_to_segment_file(segment)
+            file = self._add_beeps_and_silence_to_segment_file(segment)
+            counter += 1
+            track_tags = {
+                "artist": tags.get("artist", "Unknown Artist"),
+                "album": tags.get("album", "Unknown Album"),
+                "title": segment.exercise.name,
+                "track": f"{counter}/{total_tracks}"
+            }
+            file.export(segment.audio_file_path, format="mp3", tags=track_tags)
 
-    def _add_beeps_and_silence_to_segment_file(self, segment: Segment):
+    def _add_beeps_and_silence_to_segment_file(self, segment: Segment) -> Segment:
         speech = AudioSegment.from_mp3(segment.audio_file_path)
         AS_MILLISECONDS = 1000
         BEEP_INTERVAL = 5 * AS_MILLISECONDS
@@ -95,7 +107,7 @@ class Mp3Creator:
         silence_with_beeps = self.beep_start + silence[len(self.beep_start):] + self.beep_end
         new_audio = speech + self.pause + silence_with_beeps
 
-        new_audio.export(segment.audio_file_path, format="mp3")
+        return new_audio
 
     def _delete_segment_files(self):
         for segment in self.segments:
@@ -144,6 +156,8 @@ if __name__ == '__main__':
     parser.add_argument("--artist", type=str, help="Name of 'artist' to help with classification of file.")
     parser.add_argument("--album", type=str, help="Name of 'album' to help with classification of file.")
 
+    parser.add_argument("--merge", action='store_true', help="Merge audio files into a single audio file.")
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--xlsx", type=lambda p: Path(p).absolute(), help="Import from an xlsx file.")
     group.add_argument("--csv", type=lambda p: Path(p).absolute(), help="Import from a CSV file.")
@@ -173,4 +187,6 @@ if __name__ == '__main__':
         exercises = load_exercises_from_stdin()
 
     creator = Mp3Creator(exercises)
-    creator.create_mp3(args.output, tags)
+    creator.create_mp3s(tags)
+    if args.merge:
+        creator.merge_mp3s_into_single_file(args.output, tags)
