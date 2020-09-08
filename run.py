@@ -39,14 +39,7 @@ class Mp3Creator:
 
     def __init__(self, exercises: list):
         self.segments = self._create_segments(exercises)
-
-        p = Path(__file__).parent / "audio_resources"
-        self.beep_start = AudioSegment.from_mp3(f"{p}/beep_start.mp3")
-        self.beep_intermediate = AudioSegment.from_mp3(f"{p}/beep_intermediate.mp3")
-        self.beep_end = AudioSegment.from_mp3(f"{p}/beep_end.mp3")
-        self.finished_sound = AudioSegment.from_mp3(f"{p}/workout_end.mp3")
-
-        self.pause = AudioSegment.silent(2500)  # milliseconds
+        self._load_audio_segments_from_resources()
 
     def _create_segments(self, exercises: list):
         segments = []
@@ -56,6 +49,15 @@ class Mp3Creator:
             segment = self.Segment(exercise, speech_obj, filepath)
             segments.append(segment)
         return segments
+
+    def _load_audio_segments_from_resources(self):
+        p = Path(__file__).parent / "audio_resources"
+        self.beep_start = AudioSegment.from_mp3(p / "beep_start.mp3")
+        self.beep_intermediate = AudioSegment.from_mp3(p / "beep_intermediate.mp3")
+        self.beep_end = AudioSegment.from_mp3(p / "beep_end.mp3")
+        self.finished_sound = AudioSegment.from_mp3(p / "workout_end.mp3")
+
+        self.pause = AudioSegment.silent(2500)  # milliseconds
 
     def create_mp3(self, filepath: Path, tags: dict = None):
         self._create_segment_files()
