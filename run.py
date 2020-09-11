@@ -1,38 +1,14 @@
 import argparse
 from collections import namedtuple
-import csv
-from dataclasses import dataclass
 from pathlib import Path
-import typing
-from openpyxl import load_workbook, Workbook
 import os
-import sys
-from typing import Union
 
-from gtts import gTTS
 from gtts.tts import gTTSError
 from pydub import AudioSegment
+from typing import List
 
-
-@dataclass
-class Exercise:
-    """Class for holding the details of an exercise segment"""
-    name: str
-    duration: int  # seconds
-    reps: typing.Optional[int] = None
-    language: str = "en"
-    slow: bool = False
-
-    def _instruction_text(self) -> str:
-        if self.reps:
-            text = f"{self.reps} {self.name} in {self.duration} seconds"
-        else:
-            text = f"{self.name} for {self.duration} seconds"
-        return text
-
-    def create_speech_obj(self) -> gTTS:
-        speech_obj = gTTS(text=self._instruction_text(), lang=self.language, slow=self.slow)
-        return speech_obj
+import utils
+from utils import Exercise
 
 
 class Mp3Creator:
@@ -40,11 +16,11 @@ class Mp3Creator:
 
     Segment = namedtuple('Segment', ['exercise', 'speech_obj', 'audio_file_path'])
 
-    def __init__(self, exercises: list):
+    def __init__(self, exercises: List[Exercise]):
         self.segments = self._create_segments(exercises)
         self._load_audio_segments_from_resources()
 
-    def _create_segments(self, exercises: list):
+    def _create_segments(self, exercises: List[Exercise]) -> List[Segment]:
         segments = []
         for i, exercise in enumerate(exercises):
             speech_obj = exercise.create_speech_obj()
@@ -59,13 +35,12 @@ class Mp3Creator:
         self.beep_intermediate = AudioSegment.from_mp3(p / "beep_intermediate.mp3")
         self.beep_end = AudioSegment.from_mp3(p / "beep_end.mp3")
         self.finished_sound = AudioSegment.from_mp3(p / "workout_end.mp3")
-
         self.pause = AudioSegment.silent(2500)  # milliseconds
 
     def create_mp3s(self, tags: dict = None):
         self._create_segment_files(tags)
 
-    def merge_mp3s_into_single_file(self, filepath: Path, tags: dict = None):
+    def merge_mp3s_into_single_file(self, filepath: Path, tags: dict = None) -> Path:
 
         final_mp3 = AudioSegment.silent(2000)
         for segment in self.segments:
@@ -100,10 +75,10 @@ class Mp3Creator:
 
     def _add_beeps_and_silence_to_segment_file(self, segment: Segment) -> Segment:
         speech = AudioSegment.from_mp3(segment.audio_file_path)
-        AS_MILLISECONDS = 1000
-        BEEP_INTERVAL = 5 * AS_MILLISECONDS
-        silence = AudioSegment.silent(segment.exercise.duration * AS_MILLISECONDS)
-        for interval in range(BEEP_INTERVAL, len(silence), BEEP_INTERVAL):
+        as_milliseconds = 1000
+        beep_interval = 5 * as_milliseconds
+        silence = AudioSegment.silent(segment.exercise.duration * as_milliseconds)
+        for interval in range(beep_interval, len(silence), beep_interval):
             silence = silence[:interval] + \
                       self.beep_intermediate + \
                       silence[interval + len(self.beep_intermediate):]
@@ -115,59 +90,6 @@ class Mp3Creator:
     def _delete_segment_files(self):
         for segment in self.segments:
             os.remove(segment.audio_file_path)
-
-
-def load_exercises_from_xlsx(filepath_or_workbook: Union[Path, Workbook]):
-    """
-    Loads Exercise objects from an xlsx file
-    """
-    if type(filepath_or_workbook) == Workbook:
-        wb = filepath_or_workbook
-    elif type(filepath_or_workbook) == Path:
-        wb = load_workbook(filepath_or_workbook)
-    ws = wb.active
-    exercises = []
-    for i, row in enumerate(ws.iter_rows()):
-        if i == 0:
-            continue
-        if row[2].value:
-            exercise = Exercise(row[0].value, int(row[1].value), int(row[2].value))
-        else:
-            exercise = Exercise(row[0].value, int(row[1].value))
-        exercises.append(exercise)
-    return exercises
-
-
-def load_exercises_from_csv(filepath: Path):
-    """
-    Converts a CSV into a Workbook object to be processed into exercises just like an xlsx would.
-    """
-    wb = Workbook()
-    ws = wb.active
-
-    with open(filepath, "rt", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            ws.append(row)
-
-    exercises = load_exercises_from_xlsx(wb)
-    return exercises
-
-
-def load_exercises_from_stdin():
-    """
-    Loads Exercise objects from a comma-separated list sent from stdin
-    """
-    rows = [e.strip() for e in sys.stdin]
-    exercises = []
-    for row in rows:
-        items = row.split(",")
-        if len(items) == 3:
-            exercise = Exercise(items[0], int(items[1]), int(items[2]))
-        else:
-            exercise = Exercise(items[0], int(items[1]))
-        exercises.append(exercise)
-    return exercises
 
 
 if __name__ == '__main__':
@@ -195,24 +117,24 @@ if __name__ == '__main__':
     if args.output.suffix != ".mp3":
         args.output = args.output.parent / (args.output.stem + '.mp3')
 
-    tags = {}
+    tag_options = {}
     if args.title:
-        tags["title"] = args.title
+        tag_options["title"] = args.title
     else:
-        tags["title"] = args.output.stem
+        tag_options["title"] = args.output.stem
     if args.artist:
-        tags["artist"] = args.artist
+        tag_options["artist"] = args.artist
     if args.album:
-        tags["album"] = args.album
+        tag_options["album"] = args.album
 
     if args.xlsx:
-        exercises = load_exercises_from_xlsx(args.xlsx)
-    if args.csv:
-        exercises = load_exercises_from_csv(args.csv)
-    if args.stdin:
-        exercises = load_exercises_from_stdin()
+        exercise_list = utils.load_exercises_from_xlsx(args.xlsx)
+    elif args.csv:
+        exercise_list = utils.load_exercises_from_csv(args.csv)
+    elif args.stdin:
+        exercise_list = utils.load_exercises_from_stdin()
 
-    creator = Mp3Creator(exercises)
-    creator.create_mp3s(tags)
+    creator = Mp3Creator(exercise_list)
+    creator.create_mp3s(tag_options)
     if args.merge:
-        creator.merge_mp3s_into_single_file(args.output, tags)
+        creator.merge_mp3s_into_single_file(args.output, tag_options)
