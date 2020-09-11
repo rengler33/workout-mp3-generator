@@ -1,10 +1,13 @@
 import argparse
 from collections import namedtuple
+import csv
 from dataclasses import dataclass
 from pathlib import Path
 import typing
+from openpyxl import load_workbook, Workbook
 import os
 import sys
+from typing import Union
 
 from gtts import gTTS
 from gtts.tts import gTTSError
@@ -114,10 +117,14 @@ class Mp3Creator:
             os.remove(segment.audio_file_path)
 
 
-def load_exercises_from_xlsx(filepath: Path):
-    from openpyxl import load_workbook
-
-    wb = load_workbook(filepath)
+def load_exercises_from_xlsx(filepath_or_workbook: Union[Path, Workbook]):
+    """
+    Loads Exercise objects from an xlsx file
+    """
+    if type(filepath_or_workbook) == Workbook:
+        wb = filepath_or_workbook
+    elif type(filepath_or_workbook) == Path:
+        wb = load_workbook(filepath_or_workbook)
     ws = wb.active
     exercises = []
     for i, row in enumerate(ws.iter_rows()):
@@ -131,7 +138,26 @@ def load_exercises_from_xlsx(filepath: Path):
     return exercises
 
 
+def load_exercises_from_csv(filepath: Path):
+    """
+    Converts a CSV into a Workbook object to be processed into exercises just like an xlsx would.
+    """
+    wb = Workbook()
+    ws = wb.active
+
+    with open(filepath, "rt", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            ws.append(row)
+
+    exercises = load_exercises_from_xlsx(wb)
+    return exercises
+
+
 def load_exercises_from_stdin():
+    """
+    Loads Exercise objects from a comma-separated list sent from stdin
+    """
     rows = [e.strip() for e in sys.stdin]
     exercises = []
     for row in rows:
@@ -182,7 +208,7 @@ if __name__ == '__main__':
     if args.xlsx:
         exercises = load_exercises_from_xlsx(args.xlsx)
     if args.csv:
-        pass
+        exercises = load_exercises_from_csv(args.csv)
     if args.stdin:
         exercises = load_exercises_from_stdin()
 
