@@ -54,6 +54,8 @@ class Mp3Creator:
         return filepath
 
     def _create_segment_files(self, tags: dict = None):
+        if not tags:
+            tags = {}
         counter = 0
         total_tracks = len(self.segments)
         for segment in self.segments:
@@ -73,7 +75,7 @@ class Mp3Creator:
             }
             file.export(segment.audio_file_path, format="mp3", tags=track_tags)
 
-    def _add_beeps_and_silence_to_segment_file(self, segment: Segment) -> Segment:
+    def _add_beeps_and_silence_to_segment_file(self, segment: Segment) -> AudioSegment:
         speech = AudioSegment.from_mp3(segment.audio_file_path)
         as_milliseconds = 1000
         beep_interval = 5 * as_milliseconds
