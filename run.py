@@ -12,7 +12,7 @@ from utils import Exercise
 
 
 class Mp3Creator:
-    """Joins Exercise objects along with beeps and silence intervals into a single file"""
+    """Joins Exercise objects along with beeps and silence intervals into a file(s)"""
 
     Segment = namedtuple('Segment', ['exercise', 'speech_obj', 'audio_file_path'])
 
